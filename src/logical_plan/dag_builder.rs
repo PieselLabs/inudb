@@ -1,9 +1,10 @@
 use crate::logical_plan::dag::Dag;
 use crate::logical_plan::expr::Expr;
 use crate::logical_plan::node::{NodeId, PlanNode, Projection, TableScan};
+use arrow::datatypes::SchemaRef;
 
-struct DagBuilder<'dag> {
-    dag: &'dag mut Dag,
+struct DagBuilder<'d> {
+    dag: &'d mut Dag,
 }
 
 impl<'dag> DagBuilder<'dag> {
@@ -11,15 +12,19 @@ impl<'dag> DagBuilder<'dag> {
         DagBuilder { dag }
     }
 
-    pub fn create_scan(&mut self, table_name: String) -> NodeId {
+    pub fn create_scan(&mut self, table_name: String, schema: SchemaRef) -> NodeId {
         self.dag
-            .new_node(PlanNode::TableScan(TableScan { table_name }))
+            .new_node(PlanNode::TableScan(TableScan { table_name }), schema)
     }
 
     pub fn create_project(&mut self, expr: Vec<Expr>, input: NodeId) -> NodeId {
-        let res = self
-            .dag
-            .new_node(PlanNode::Projection(Projection { expr, input }));
+        // TODO(vlad): infer output schema based on input schema using expression
+        let input_schema = self.dag.get_output_schema(input);
+
+        let res = self.dag.new_node(
+            PlanNode::Projection(Projection { expr, input }),
+            input_schema,
+        );
         self.dag.add_usage(input, res);
         res
     }
@@ -28,14 +33,17 @@ impl<'dag> DagBuilder<'dag> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arrow::datatypes::Schema;
+    use std::sync::Arc;
 
     #[test]
     fn test_dag_builder() {
+        // TODO(vlad): add tests for schema inference for projection/join and other node types
         let mut dag = Dag::new();
 
         let mut builder = DagBuilder::new(&mut dag);
 
-        let scan = builder.create_scan("table".to_string());
+        let scan = builder.create_scan("table".to_string(), Arc::new(Schema::empty()));
         let project = builder.create_project(Vec::new(), scan);
 
         assert_eq!(

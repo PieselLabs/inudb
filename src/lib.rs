@@ -1,6 +1,6 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 mod catalog;
 mod execution_engine;
-#[allow(dead_code)]
 mod logical_plan;
 mod optimizer;
