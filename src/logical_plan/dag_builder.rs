@@ -6,33 +6,52 @@ struct DagBuilder<'dag> {
     dag: &'dag mut Dag,
 }
 
-impl <'dag> DagBuilder <'dag> {
+impl<'dag> DagBuilder<'dag> {
     pub fn new(dag: &'dag mut Dag) -> Self {
-        DagBuilder {dag}
+        DagBuilder { dag }
     }
 
     pub fn create_scan(&mut self, table_name: String) -> NodeId {
-        self.dag.new_node(PlanNode::TableScan(TableScan{table_name}))
+        self.dag
+            .new_node(PlanNode::TableScan(TableScan { table_name }))
     }
 
     pub fn create_project(&mut self, expr: Vec<Expr>, input: NodeId) -> NodeId {
-        let res = self.dag.new_node(PlanNode::Projection(Projection{expr, input}));
+        let res = self
+            .dag
+            .new_node(PlanNode::Projection(Projection { expr, input }));
         self.dag.add_usage(input, res);
         res
     }
 }
 
-#[test]
-fn test_dag_builder() {
-    let mut dag = Dag::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut builder = DagBuilder::new(&mut dag);
+    #[test]
+    fn test_dag_builder() {
+        let mut dag = Dag::new();
 
-    let scan = builder.create_scan("table".to_string());
-    let project = builder.create_project(Vec::new(), scan);
+        let mut builder = DagBuilder::new(&mut dag);
 
-    assert_eq!(dag.get_node(scan), &PlanNode::TableScan(TableScan{table_name: "table".to_string()}));
-    assert_eq!(dag.get_node(project), &PlanNode::Projection(Projection{expr: Vec::new(), input: scan}));
+        let scan = builder.create_scan("table".to_string());
+        let project = builder.create_project(Vec::new(), scan);
 
-    println!("{:?}", dag);
+        assert_eq!(
+            dag.get_node(scan),
+            &PlanNode::TableScan(TableScan {
+                table_name: "table".to_string()
+            })
+        );
+        assert_eq!(
+            dag.get_node(project),
+            &PlanNode::Projection(Projection {
+                expr: Vec::new(),
+                input: scan
+            })
+        );
+
+        println!("{:?}", dag);
+    }
 }
