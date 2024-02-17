@@ -1,31 +1,32 @@
-use crate::logical_plan::dag::Dag;
+use crate::dag::Dag;
 use crate::logical_plan::expr::Expr;
-use crate::logical_plan::node::{NodeId, PlanNode, Projection, TableScan};
+use crate::logical_plan::logical_plan::{LogicalPlan, Projection, TableScan};
+use crate::logical_plan::NodeId;
 use arrow::datatypes::SchemaRef;
 
 struct DagBuilder<'d> {
-    dag: &'d mut Dag,
+    dag: &'d mut Dag<LogicalPlan>,
 }
 
-impl<'dag> DagBuilder<'dag> {
-    pub fn new(dag: &'dag mut Dag) -> Self {
+impl<'d> DagBuilder<'d> {
+    pub fn new(dag: &'d mut Dag<LogicalPlan>) -> Self {
         DagBuilder { dag }
     }
 
     pub fn create_scan(&mut self, table_name: String, schema: SchemaRef) -> NodeId {
         self.dag
-            .new_node(PlanNode::TableScan(TableScan { table_name }), schema)
+            .new_node(LogicalPlan::TableScan(TableScan { table_name, schema }))
     }
 
     pub fn create_project(&mut self, expr: Vec<Expr>, input: NodeId) -> NodeId {
         // TODO(vlad): infer output schema based on input schema using expression
-        let input_schema = self.dag.get_output_schema(input);
+        let prev = self.dag.get_node(input);
+        let schema = prev.get_schema();
 
-        let res = self.dag.new_node(
-            PlanNode::Projection(Projection { expr, input }),
-            input_schema,
-        );
-        self.dag.add_usage(input, res);
+        let res = self
+            .dag
+            .new_node(LogicalPlan::Projection(Projection { expr, schema }));
+        self.dag.add_input(res, input);
         res
     }
 }
@@ -48,17 +49,21 @@ mod tests {
 
         assert_eq!(
             dag.get_node(scan),
-            &PlanNode::TableScan(TableScan {
-                table_name: "table".to_string()
+            &LogicalPlan::TableScan(TableScan {
+                table_name: "table".to_string(),
+                schema: Arc::new(Schema::empty()),
             })
         );
         assert_eq!(
             dag.get_node(project),
-            &PlanNode::Projection(Projection {
+            &LogicalPlan::Projection(Projection {
                 expr: Vec::new(),
-                input: scan
+                schema: Arc::new(Schema::empty()),
             })
         );
+
+        assert_eq!(dag.get_inputs(scan).len(), 0);
+        assert_eq!(dag.get_inputs(project)[0], scan);
 
         println!("{:?}", dag);
     }

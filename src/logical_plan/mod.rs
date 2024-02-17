@@ -1,8 +1,7 @@
-mod dag;
-pub use dag::*;
+pub use crate::dag::*;
 mod dag_builder;
 pub use dag_builder::*;
 mod expr;
 pub use expr::*;
-mod node;
-pub use node::*;
+mod logical_plan;
+pub use logical_plan::*;

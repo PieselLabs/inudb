@@ -1,5 +1,5 @@
 use crate::catalog::Catalog;
-use crate::logical_plan::Dag;
+use crate::logical_plan::{Dag, LogicalPlan};
 use crate::optimizer::errors::OptimizerError;
 
 pub struct Optimizer<'c> {
@@ -11,7 +11,7 @@ impl<'c> Optimizer<'c> {
         Optimizer { catalog }
     }
 
-    pub fn run(dag: &mut Dag) -> Result<(), OptimizerError> {
+    pub fn run(dag: &mut Dag<LogicalPlan>) -> Result<(), OptimizerError> {
         Ok(())
     }
 }
