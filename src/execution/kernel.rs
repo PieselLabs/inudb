@@ -5,5 +5,5 @@ use std::sync::Arc;
 pub trait Kernel {
     fn schema(&self) -> SchemaRef;
 
-    fn execute(&self, inputs: Vec<Arc<dyn Any>>) -> Option<Arc<dyn Any>>;
+    fn execute(&self, inputs: Vec<Arc<dyn Any>>);
 }
