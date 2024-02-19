@@ -13,9 +13,16 @@ pub struct Projection {
 }
 
 #[derive(PartialEq, Debug)]
+pub struct Filter {
+    pub expr: Vec<Expr>,
+    pub schema: SchemaRef,
+}
+
+#[derive(PartialEq, Debug)]
 pub enum LogicalPlan {
     TableScan(TableScan),
     Projection(Projection),
+    Filter(Filter),
 }
 
 impl LogicalPlan {
@@ -23,6 +30,7 @@ impl LogicalPlan {
         match self {
             LogicalPlan::TableScan(scan) => scan.schema.clone(),
             LogicalPlan::Projection(proj) => proj.schema.clone(),
+            LogicalPlan::Filter(filter) => filter.schema.clone(),
         }
     }
 }

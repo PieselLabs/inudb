@@ -4,7 +4,7 @@ use crate::logical_plan::logical_plan::{LogicalPlan, Projection, TableScan};
 use crate::logical_plan::NodeId;
 use arrow::datatypes::SchemaRef;
 
-struct DagBuilder<'d> {
+pub struct DagBuilder<'d> {
     dag: &'d mut Dag<LogicalPlan>,
 }
 
