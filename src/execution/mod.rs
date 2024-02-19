@@ -1,3 +1,4 @@
+mod dummy_kernels;
 mod errors;
-mod generator_kernel;
 mod kernel;
+mod slots;

@@ -1,9 +1,7 @@
 use arrow::datatypes::SchemaRef;
-use std::any::Any;
-use std::sync::Arc;
 
-pub trait Kernel {
+pub trait Kernel<T> {
     fn schema(&self) -> SchemaRef;
 
-    fn execute(&self, inputs: Vec<Arc<dyn Any>>);
+    fn execute(&mut self, input: T);
 }
