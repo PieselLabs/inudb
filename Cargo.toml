@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 arrow="50.0.0"
+parquet = "50.0.0"
 anyhow = "1.0.79"
 futures="0.3.30"
 sqlparser = "0.43.1"

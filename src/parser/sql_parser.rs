@@ -1,6 +1,6 @@
 use sqlparser::ast;
 use crate::catalog::{Catalog, DummyCatalog};
-use crate::logical_plan::{ColumnExpr, Dag, DagBuilder, Expr, LogicalPlan, VisitExpression};
+use crate::logical_plan::{Dag, DagBuilder, Expr, IdentExpr, LogicalPlan, VisitExpression};
 
 use sqlparser::dialect::GenericDialect;
 use sqlparser::parser::Parser;
@@ -75,7 +75,7 @@ impl SQLParser {
         
         let mut vec_expr : Vec<Expr> = vec![];
         for column_name in columns.iter() {
-            vec_expr.push(Expr::Column(ColumnExpr {name: column_name.to_string() }));
+            vec_expr.push(Expr::Ident(IdentExpr {name: column_name.to_string() }));
         }
 
         dag_builder.create_project(vec_expr, from_id)
@@ -94,7 +94,7 @@ mod tests {
     use sqlparser::dialect::GenericDialect;
     use crate::catalog::DummyCatalog;
     use crate::dag::Dag;
-    use crate::logical_plan::{BinaryExpr, BinaryOp, ColumnExpr, DagBuilder, Expr, IntegerLiteralExpr, LogicalPlan};
+    use crate::logical_plan::{BinaryExpr, BinaryOp, DagBuilder, Expr, IdentExpr, IntegerLiteralExpr, LogicalPlan};
     use crate::parser::sql_parser::SQLParser;
 
     #[test]
@@ -116,7 +116,7 @@ mod tests {
 
         let mut dag_builder = DagBuilder::new(&mut logical_plan_excepted);
 
-        let project_expr = vec![Expr::Column(ColumnExpr{name: "a".to_string()}), Expr::Column(ColumnExpr{name: "b".to_string()})];
+        let project_expr = vec![Expr::Ident(IdentExpr{name: "a".to_string()}), Expr::Ident(IdentExpr{name: "b".to_string()})];
         let scan_id = dag_builder.create_scan("table_1".to_string(), table_1_schema.clone());
         dag_builder.create_project(project_expr, scan_id);
 
@@ -143,15 +143,15 @@ mod tests {
 
         let mut dag_builder = DagBuilder::new(&mut logical_plan_excepted);
 
-        let project_expr = vec![Expr::Column(ColumnExpr{name: "a".to_string()}), Expr::Column(ColumnExpr{name: "b".to_string()})];
+        let project_expr = vec![Expr::Ident(IdentExpr{name: "a".to_string()}), Expr::Ident(IdentExpr{name: "b".to_string()})];
         let filter_expr = Box::from(Expr::Binary(BinaryExpr {
             lhs: Box::from(Expr::Binary(BinaryExpr {
-                lhs: Box::from(Expr::Column(ColumnExpr {name : "a".to_string()})),
+                lhs: Box::from(Expr::Ident(IdentExpr {name : "a".to_string()})),
                 binary_op: BinaryOp::GT,
                 rhs : Box::from(Expr::IntegerLiteral(IntegerLiteralExpr {value : 50}))})),
             binary_op: BinaryOp::AND,
             rhs : Box::from(Expr::Binary(BinaryExpr {
-                lhs: Box::from(Expr::Column(ColumnExpr {name : "b".to_string()})),
+                lhs: Box::from(Expr::Ident(IdentExpr {name : "b".to_string()})),
                 binary_op: BinaryOp::LT,
                 rhs : Box::from(Expr::IntegerLiteral(IntegerLiteralExpr {value : 100}))}))}));
 
