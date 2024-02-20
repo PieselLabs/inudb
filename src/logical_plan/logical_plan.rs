@@ -1,5 +1,6 @@
 use super::expr::Expr;
 use arrow::datatypes::SchemaRef;
+
 #[derive(PartialEq, Debug)]
 pub struct TableScan {
     pub table_name: String,
@@ -14,7 +15,7 @@ pub struct Projection {
 
 #[derive(PartialEq, Debug)]
 pub struct Filter {
-    pub expr: Vec<Expr>,
+    pub expr: Box<Expr>,
     pub schema: SchemaRef,
 }
 
