@@ -1,10 +1,10 @@
 use crate::dag::Dag;
 use crate::logical_plan::expr::Expr;
 use crate::logical_plan::logical_plan::{LogicalPlan, Projection, TableScan};
-use crate::logical_plan::NodeId;
+use crate::logical_plan::{Filter, NodeId};
 use arrow::datatypes::SchemaRef;
 
-struct DagBuilder<'d> {
+pub struct DagBuilder<'d> {
     dag: &'d mut Dag<LogicalPlan>,
 }
 
@@ -27,6 +27,19 @@ impl<'d> DagBuilder<'d> {
             .dag
             .new_node(LogicalPlan::Projection(Projection { expr, schema }));
         self.dag.add_input(res, input);
+        res
+    }
+
+    pub fn create_filter(&mut self, expr: Box<Expr>, scan_id: NodeId) -> NodeId {
+        let prev = self.dag.get_node(scan_id);
+        let table_schema = prev.get_schema();
+        let schema = table_schema.clone();
+
+        // TODO(vlad): infer filter schema based on columns which used in expression
+        let res = self
+            .dag
+            .new_node(LogicalPlan::Filter(Filter { expr, schema }));
+        self.dag.add_input(res, scan_id);
         res
     }
 }
