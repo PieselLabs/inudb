@@ -1,70 +1,69 @@
 use sqlparser::ast;
 use sqlparser::ast::BinaryOperator;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum BinaryOp {
-    AND,
-    OR,
-    LT,
-    GT,
+    And,
+    Or,
+    Lt,
+    Gt,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct BinaryExpr {
+#[derive(PartialEq, Eq, Debug)]
+pub struct Binary {
     pub lhs: Box<Expr>,
-    pub binary_op: BinaryOp,
+    pub op: BinaryOp,
     pub rhs: Box<Expr>,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct IdentExpr {
+#[derive(PartialEq, Eq, Debug)]
+pub struct Ident {
     pub name: String,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct IntegerLiteralExpr {
+#[derive(PartialEq, Eq, Debug)]
+pub struct IntegerLiteral {
     pub value: i32,
 }
 
-
 #[allow(dead_code)]
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Expr {
-    Binary(BinaryExpr),
-    Ident(IdentExpr),
-    IntegerLiteral(IntegerLiteralExpr),
+    Binary(Binary),
+    Ident(Ident),
+    IntegerLiteral(IntegerLiteral),
 }
 
 pub struct VisitExpression {}
 
 impl VisitExpression {
-    pub fn visit(expr: &ast::Expr) -> Box<Expr> {
+    pub fn visit(expr: &ast::Expr) -> Expr {
         match expr {
-            ast::Expr::BinaryOp { left, op, right} => {
-               Box::from(Expr::Binary(BinaryExpr {lhs : Self::visit(left), binary_op : Self::visit_binary_op(op), rhs : Self::visit(right)}))
-            }
-            ast::Expr::Identifier(ident) => {
-                Box::from(Expr::Ident(IdentExpr {name : ident.value.to_string() }))
-            }
-            ast::Expr::Value(value) => {
-                match value {
-                    ast::Value::Number(number, flag) => {
-                        Box::from(Expr::IntegerLiteral(IntegerLiteralExpr {value : number.parse().unwrap()}))
-                    }
-                    _ => unimplemented!()
-                }
-            }
-            _ => unimplemented!()
+            ast::Expr::BinaryOp { left, op, right } => Expr::Binary(Binary {
+                lhs: Box::new(Self::visit(left)),
+                op: Self::visit_binary_op(op),
+                rhs: Box::new(Self::visit(right)),
+            }),
+            ast::Expr::Identifier(ident) => Expr::Ident(Ident {
+                name: ident.value.to_string(),
+            }),
+            ast::Expr::Value(value) => match value {
+                ast::Value::Number(number, flag) => Expr::IntegerLiteral(IntegerLiteral {
+                    value: number.parse().unwrap(),
+                }),
+                _ => unimplemented!(),
+            },
+            _ => unimplemented!(),
         }
     }
 
     fn visit_binary_op(binary_op: &BinaryOperator) -> BinaryOp {
         match binary_op {
-            BinaryOperator::Gt => { BinaryOp::GT }
-            BinaryOperator::Lt => { BinaryOp::LT }
-            BinaryOperator::And => { BinaryOp::AND }
-            BinaryOperator::Or => { BinaryOp::OR }
-            _ => unimplemented!()
+            BinaryOperator::Gt => BinaryOp::Gt,
+            BinaryOperator::Lt => BinaryOp::Lt,
+            BinaryOperator::And => BinaryOp::And,
+            BinaryOperator::Or => BinaryOp::Or,
+            _ => unimplemented!(),
         }
     }
 }

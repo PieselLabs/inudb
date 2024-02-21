@@ -1,7 +1,7 @@
 use crate::dag::Dag;
 use crate::logical_plan::expr::Expr;
-use crate::logical_plan::logical_plan::{LogicalPlan, Projection, TableScan};
 use crate::logical_plan::{Filter, NodeId};
+use crate::logical_plan::{LogicalPlan, Projection, TableScan};
 use arrow::datatypes::SchemaRef;
 
 pub struct DagBuilder<'d> {
@@ -32,8 +32,7 @@ impl<'d> DagBuilder<'d> {
 
     pub fn create_filter(&mut self, expr: Box<Expr>, scan_id: NodeId) -> NodeId {
         let prev = self.dag.get_node(scan_id);
-        let table_schema = prev.get_schema();
-        let schema = table_schema.clone();
+        let schema = prev.get_schema();
 
         // TODO(vlad): infer filter schema based on columns which used in expression
         let res = self
@@ -77,7 +76,5 @@ mod tests {
 
         assert_eq!(dag.get_inputs(scan).len(), 0);
         assert_eq!(dag.get_inputs(project)[0], scan);
-
-        println!("{:?}", dag);
     }
 }
