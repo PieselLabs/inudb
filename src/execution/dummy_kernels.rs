@@ -1,5 +1,9 @@
+use std::fs::File;
+use arrow::datatypes::{Schema, SchemaRef};
+use arrow::record_batch::RecordBatch;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::file::reader::FileReader;
 use crate::execution::kernel::Kernel;
-use arrow::datatypes::SchemaRef;
 
 pub struct GeneratorKernel<'i> {
     children: Vec<Box<dyn Kernel<usize> + 'i>>,
@@ -70,6 +74,35 @@ impl Kernel<(bool, usize)> for CollectKernel<'_> {
     }
 }
 
+pub struct ScanKernel<'s> {
+    schema: SchemaRef,
+    res: &'s mut Vec<RecordBatch>,
+}
+
+impl<'s> ScanKernel<'s> {
+    fn new(res: &'s mut Vec<RecordBatch>) -> Box<Self> {
+        Box::new(ScanKernel {schema: SchemaRef::from(Schema::empty()), res })
+    }
+}
+
+impl Kernel<(String, usize)> for ScanKernel<'_> {
+    fn schema(&self) -> SchemaRef {
+        self.schema.clone()
+    }
+
+    fn execute(&mut self, input: (String, usize)) {
+        let (file_path, chunk_size) = input;
+        let file = File::open(file_path).unwrap();
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
+        self.schema = builder.schema().clone();
+        let mut reader = builder.build().unwrap();
+        while let Some(batch) = reader.next() {
+            self.res.push(batch.unwrap())
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,5 +118,18 @@ mod tests {
         }
 
         assert_eq!(res, vec![5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn test_scan_kernel() {
+        let mut res: Vec<RecordBatch> = Vec::new();
+        {
+            let mut scan = ScanKernel::new(&mut res);
+            scan.execute(("samples/sample-data/parquet/userdata1.parquet".to_string(), 1000));
+        }
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].num_columns(), 13);
+        assert_eq!(res[0].num_rows(), 1000);
     }
 }
