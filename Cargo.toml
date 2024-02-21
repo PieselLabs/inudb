@@ -2,12 +2,13 @@
 name = "inudb"
 version = "0.1.0"
 edition = "2021"
+description = "Inudb Database library"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arrow="50.0.0"
+arrow = "50.0.0"
 parquet = "50.0.0"
 anyhow = "1.0.79"
-futures="0.3.30"
+futures = "0.3.30"
 sqlparser = "0.43.1"

@@ -1,5 +1,5 @@
-use crate::catalog::catalog::Catalog;
-use crate::catalog::errors::CatalogError;
+use crate::catalog::Catalog;
+use crate::catalog::CatalogError;
 use arrow::datatypes::SchemaRef;
 use std::collections::HashMap;
 
@@ -9,7 +9,7 @@ pub struct DummyCatalog {
 
 impl DummyCatalog {
     pub fn new() -> Self {
-        DummyCatalog {
+        Self {
             tables: HashMap::new(),
         }
     }

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CatalogError {
     TableNotFound(String),
 }
@@ -9,11 +9,10 @@ pub enum CatalogError {
 impl fmt::Display for CatalogError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CatalogError::TableNotFound(table_name) => {
+            Self::TableNotFound(table_name) => {
                 write!(
                     f,
-                    "Catalog Error: Table with name {} not found in catalog",
-                    table_name
+                    "Catalog Error: Table with name {table_name} not found in catalog"
                 )
             }
         }

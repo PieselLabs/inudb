@@ -11,7 +11,7 @@ pub struct Dag<Node> {
 
 impl<Node> Dag<Node> {
     pub fn new() -> Self {
-        Dag {
+        Self {
             nodes: Vec::new(),
             usages: Vec::new(),
             inputs: Vec::new(),
