@@ -129,7 +129,7 @@ mod tests {
         ]));
         catalog.add_table("table_1", table_1_schema.clone());
 
-        let logical_plan_actual = parse_sql_query(sql_query, &mut catalog);
+        let logical_plan_actual = parse_sql_query(sql_query, &catalog);
 
         let mut logical_plan_excepted: Dag<LogicalPlan> = Dag::new();
 
@@ -143,7 +143,7 @@ mod tests {
                 name: "b".to_string(),
             }),
         ];
-        let scan_id = dag_builder.create_scan("table_1".to_string(), table_1_schema.clone());
+        let scan_id = dag_builder.create_scan("table_1".to_string(), table_1_schema);
         dag_builder.create_project(project_expr, scan_id);
 
         assert_eq!(
@@ -174,7 +174,7 @@ mod tests {
         ]));
         catalog.add_table("table_1", table_1_schema.clone());
 
-        let logical_plan_actual = parse_sql_query(sql_query, &mut catalog);
+        let logical_plan_actual = parse_sql_query(sql_query, &catalog);
 
         let mut logical_plan_excepted: Dag<LogicalPlan> = Dag::new();
 
@@ -206,7 +206,7 @@ mod tests {
             })),
         }));
 
-        let scan = dag_builder.create_scan("table_1".to_string(), table_1_schema.clone());
+        let scan = dag_builder.create_scan("table_1".to_string(), table_1_schema);
         let filter = dag_builder.create_filter(filter_expr, scan);
         let project = dag_builder.create_project(project_expr, filter);
 

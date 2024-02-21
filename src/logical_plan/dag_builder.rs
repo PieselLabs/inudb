@@ -76,7 +76,5 @@ mod tests {
 
         assert_eq!(dag.get_inputs(scan).len(), 0);
         assert_eq!(dag.get_inputs(project)[0], scan);
-
-        println!("{:?}", dag);
     }
 }
