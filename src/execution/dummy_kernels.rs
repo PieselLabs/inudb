@@ -1,6 +1,7 @@
 use std::fs::File;
-use arrow::datatypes::SchemaRef;
+use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use parquet::file::reader::FileReader;
 use crate::execution::kernel::Kernel;
 
@@ -80,19 +81,19 @@ pub struct ScanKernel<'s> {
 
 impl<'s> ScanKernel<'s> {
     fn new(res: &'s mut Vec<RecordBatch>) -> Box<Self> {
-        Box::new(ScanKernel {schema: arrow::datatypes::SchemaRef::from(arrow::datatypes::Schema::empty()), res })
+        Box::new(ScanKernel {schema: SchemaRef::from(Schema::empty()), res })
     }
 }
 
 impl Kernel<(String, usize)> for ScanKernel<'_> {
-    fn schema(&self) -> arrow::datatypes::SchemaRef {
+    fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
 
     fn execute(&mut self, input: (String, usize)) {
         let (file_path, chunk_size) = input;
         let file = File::open(file_path).unwrap();
-        let builder = parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
         self.schema = builder.schema().clone();
         let mut reader = builder.build().unwrap();
         while let Some(batch) = reader.next() {
