@@ -1,5 +1,7 @@
+use std::fs::File;
+use std::ptr::read;
+use parquet::file::reader::FileReader;
 use crate::execution::kernel::Kernel;
-use arrow::datatypes::SchemaRef;
 
 pub struct GeneratorKernel<'i> {
     children: Vec<Box<dyn Kernel<usize> + 'i>>,
@@ -12,7 +14,7 @@ impl<'i> GeneratorKernel<'i> {
 }
 
 impl Kernel<()> for GeneratorKernel<'_> {
-    fn schema(&self) -> SchemaRef {
+    fn schema(&self) -> arrow::datatypes::SchemaRef {
         todo!()
     }
 
@@ -37,7 +39,7 @@ impl<'i> FilterKernel<'i> {
 }
 
 impl Kernel<usize> for FilterKernel<'_> {
-    fn schema(&self) -> SchemaRef {
+    fn schema(&self) -> arrow::datatypes::SchemaRef {
         todo!()
     }
 
@@ -59,7 +61,7 @@ impl<'i> CollectKernel<'i> {
 }
 
 impl Kernel<(bool, usize)> for CollectKernel<'_> {
-    fn schema(&self) -> SchemaRef {
+    fn schema(&self) -> arrow::datatypes::SchemaRef {
         todo!()
     }
 
@@ -69,6 +71,35 @@ impl Kernel<(bool, usize)> for CollectKernel<'_> {
         }
     }
 }
+
+pub struct ScanKernel<'s> {
+    schema: arrow::datatypes::SchemaRef,
+    res: &'s mut Vec<arrow::record_batch::RecordBatch>,
+}
+
+impl<'s> ScanKernel<'s> {
+    fn new(res: &'s mut Vec<arrow::record_batch::RecordBatch>) -> Box<Self> {
+        Box::new(ScanKernel {schema: arrow::datatypes::SchemaRef::from(arrow::datatypes::Schema::empty()), res })
+    }
+}
+
+impl Kernel<(String, usize)> for ScanKernel<'_> {
+    fn schema(&self) -> arrow::datatypes::SchemaRef {
+        self.schema.clone()
+    }
+
+    fn execute(&mut self, input: (String, usize)) {
+        let (file_path, chunk_size) = input;
+        let file = File::open(file_path).unwrap();
+        let builder = parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
+        self.schema = builder.schema().clone();
+        let mut reader = builder.build().unwrap();
+        while let Some(batch) = reader.next() {
+            self.res.push(batch.unwrap())
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -85,5 +116,18 @@ mod tests {
         }
 
         assert_eq!(res, vec![5, 6, 7, 8, 9]);
+    }
+
+    #[test]
+    fn test_scan_kernel() {
+        let mut res: Vec<arrow::record_batch::RecordBatch> = Vec::new();
+        {
+            let mut scan = ScanKernel::new(&mut res);
+            scan.execute(("samples/sample-data/parquet/userdata1.parquet".to_string(), 1000));
+        }
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].num_columns(), 13);
+        assert_eq!(res[0].num_rows(), 1000);
     }
 }
