@@ -1,5 +1,6 @@
 use std::fs::File;
-use std::ptr::read;
+use arrow::datatypes::SchemaRef;
+use arrow::record_batch::RecordBatch;
 use parquet::file::reader::FileReader;
 use crate::execution::kernel::Kernel;
 
@@ -14,7 +15,7 @@ impl<'i> GeneratorKernel<'i> {
 }
 
 impl Kernel<()> for GeneratorKernel<'_> {
-    fn schema(&self) -> arrow::datatypes::SchemaRef {
+    fn schema(&self) -> SchemaRef {
         todo!()
     }
 
@@ -39,7 +40,7 @@ impl<'i> FilterKernel<'i> {
 }
 
 impl Kernel<usize> for FilterKernel<'_> {
-    fn schema(&self) -> arrow::datatypes::SchemaRef {
+    fn schema(&self) -> SchemaRef {
         todo!()
     }
 
@@ -61,7 +62,7 @@ impl<'i> CollectKernel<'i> {
 }
 
 impl Kernel<(bool, usize)> for CollectKernel<'_> {
-    fn schema(&self) -> arrow::datatypes::SchemaRef {
+    fn schema(&self) -> SchemaRef {
         todo!()
     }
 
@@ -73,12 +74,12 @@ impl Kernel<(bool, usize)> for CollectKernel<'_> {
 }
 
 pub struct ScanKernel<'s> {
-    schema: arrow::datatypes::SchemaRef,
-    res: &'s mut Vec<arrow::record_batch::RecordBatch>,
+    schema: SchemaRef,
+    res: &'s mut Vec<RecordBatch>,
 }
 
 impl<'s> ScanKernel<'s> {
-    fn new(res: &'s mut Vec<arrow::record_batch::RecordBatch>) -> Box<Self> {
+    fn new(res: &'s mut Vec<RecordBatch>) -> Box<Self> {
         Box::new(ScanKernel {schema: arrow::datatypes::SchemaRef::from(arrow::datatypes::Schema::empty()), res })
     }
 }
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_scan_kernel() {
-        let mut res: Vec<arrow::record_batch::RecordBatch> = Vec::new();
+        let mut res: Vec<RecordBatch> = Vec::new();
         {
             let mut scan = ScanKernel::new(&mut res);
             scan.execute(("samples/sample-data/parquet/userdata1.parquet".to_string(), 1000));
