@@ -1,29 +1,8 @@
-use crate::execution::kernel::Kernel;
+use crate::execution::kernels::kernel::Kernel;
 use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use std::fs::File;
-
-pub struct CollectKernel<'i> {
-    res: &'i mut Vec<RecordBatch>,
-}
-
-impl<'i> CollectKernel<'i> {
-    fn new(res: &'i mut Vec<RecordBatch>) -> Self {
-        Self { res }
-    }
-}
-
-impl Kernel<RecordBatch> for CollectKernel<'_> {
-    fn schema(&self) -> SchemaRef {
-        todo!()
-    }
-
-    fn execute(&mut self, input: RecordBatch) -> anyhow::Result<()> {
-        self.res.push(input);
-        Ok(())
-    }
-}
 
 pub struct ScanKernel<'s> {
     schema: SchemaRef,
@@ -31,7 +10,7 @@ pub struct ScanKernel<'s> {
 }
 
 impl<'s> ScanKernel<'s> {
-    fn new(children: Vec<Box<dyn Kernel<RecordBatch> + 's>>) -> Self {
+    pub(crate) fn new(children: Vec<Box<dyn Kernel<RecordBatch> + 's>>) -> Self {
         Self {
             schema: SchemaRef::from(Schema::empty()),
             children,
@@ -63,6 +42,7 @@ impl Kernel<(String, usize)> for ScanKernel<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::execution::kernels::collect::CollectKernel;
 
     #[test]
     fn test_scan_kernel() {
