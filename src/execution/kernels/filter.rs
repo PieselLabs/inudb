@@ -3,18 +3,18 @@ use crate::logical_plan::expr::{Binary, BinaryOp, Expr, Ident, IntegerLiteral};
 use arrow::array::{Array, Int32Array, RecordBatch};
 use arrow::datatypes::SchemaRef;
 
-pub struct FilterKernel<'f> {
+pub struct Filter<'f> {
     res: &'f mut Vec<usize>,
-    expression: &'f Box<Expr>,
+    expression: &'f Expr,
 }
 
-impl<'f> FilterKernel<'f> {
-    pub(crate) fn new(res: &'f mut Vec<usize>, expression: &'f Box<Expr>) -> Self {
+impl<'f> Filter<'f> {
+    pub(crate) fn new(res: &'f mut Vec<usize>, expression: &'f Expr) -> Self {
         Self { res, expression }
     }
 }
 
-impl Kernel<RecordBatch> for FilterKernel<'_> {
+impl Kernel<RecordBatch> for Filter<'_> {
     fn schema(&self) -> SchemaRef {
         todo!()
     }
@@ -36,7 +36,7 @@ pub struct ExecuteExpression<'e> {
 }
 
 impl<'e> ExecuteExpression<'e> {
-    pub fn new(record_batch: &'e RecordBatch) -> Self {
+    pub const fn new(record_batch: &'e RecordBatch) -> Self {
         Self { record_batch }
     }
 
@@ -80,13 +80,13 @@ impl<'e> ExecuteExpression<'e> {
         }
     }
 
-    fn visit_integer_literal(expr: &IntegerLiteral) -> i32 {
+    const fn visit_integer_literal(expr: &IntegerLiteral) -> i32 {
         expr.value
     }
 
     fn visit_ident(self, expr: &Ident, index: usize) -> i32 {
         self.record_batch
-            .column_by_name(&*expr.name)
+            .column_by_name(&expr.name)
             .unwrap()
             .as_any()
             .downcast_ref::<Int32Array>()
@@ -94,7 +94,7 @@ impl<'e> ExecuteExpression<'e> {
             .value(index)
     }
 
-    pub fn predicate(self, expression: &Box<Expr>, index: usize) -> bool {
+    pub fn predicate(self, expression: &Expr, index: usize) -> bool {
         self.visit_expression(expression, index)
     }
 }
@@ -132,8 +132,8 @@ mod tests {
         let schema = Schema::new(vec![Field::new("id", DataType::Int32, false)]);
         let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(id_array)]).unwrap();
 
-        let mut filter = FilterKernel::new(&mut indeces, &filter_expr);
+        let mut filter = Filter::new(&mut indeces, &filter_expr);
         let _ = filter.execute(batch);
-        assert_eq!(indeces.len(), 39)
+        assert_eq!(indeces.len(), 39);
     }
 }

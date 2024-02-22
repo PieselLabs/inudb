@@ -2,17 +2,17 @@ use crate::execution::kernels::kernel::Kernel;
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
 
-pub struct CollectKernel<'i> {
+pub struct Collect<'i> {
     res: &'i mut Vec<RecordBatch>,
 }
 
-impl<'i> CollectKernel<'i> {
+impl<'i> Collect<'i> {
     pub(crate) fn new(res: &'i mut Vec<RecordBatch>) -> Self {
         Self { res }
     }
 }
 
-impl Kernel<RecordBatch> for CollectKernel<'_> {
+impl Kernel<RecordBatch> for Collect<'_> {
     fn schema(&self) -> SchemaRef {
         todo!()
     }

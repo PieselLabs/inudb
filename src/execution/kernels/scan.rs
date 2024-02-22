@@ -4,12 +4,12 @@ use arrow::record_batch::RecordBatch;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use std::fs::File;
 
-pub struct ScanKernel<'s> {
+pub struct Scan<'s> {
     schema: SchemaRef,
     children: Vec<Box<dyn Kernel<RecordBatch> + 's>>,
 }
 
-impl<'s> ScanKernel<'s> {
+impl<'s> Scan<'s> {
     pub(crate) fn new(children: Vec<Box<dyn Kernel<RecordBatch> + 's>>) -> Self {
         Self {
             schema: SchemaRef::from(Schema::empty()),
@@ -18,7 +18,7 @@ impl<'s> ScanKernel<'s> {
     }
 }
 
-impl Kernel<(String, usize)> for ScanKernel<'_> {
+impl Kernel<(String, usize)> for Scan<'_> {
     fn schema(&self) -> SchemaRef {
         self.schema.clone()
     }
@@ -42,15 +42,15 @@ impl Kernel<(String, usize)> for ScanKernel<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::execution::kernels::collect::CollectKernel;
+    use crate::execution::kernels::collect::Collect;
 
     #[test]
     fn test_scan_kernel() {
         let mut res: Vec<RecordBatch> = Vec::new();
         let batch_size = 500;
         {
-            let collect = CollectKernel::new(&mut res);
-            let mut scan = ScanKernel::new(vec![Box::new(collect)]);
+            let collect = Collect::new(&mut res);
+            let mut scan = Scan::new(vec![Box::new(collect)]);
             let _ = scan.execute((
                 "samples/sample-data/parquet/userdata1.parquet".to_string(),
                 batch_size,

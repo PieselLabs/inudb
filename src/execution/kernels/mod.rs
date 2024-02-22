@@ -1,4 +1,4 @@
 mod collect;
 mod filter;
-pub(crate) mod kernel;
+pub mod kernel;
 mod scan;
