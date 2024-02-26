@@ -29,8 +29,8 @@ impl Kernel<RecordBatch> for Filter<'_> {
         let filter_execution = FilterExec::new(&input);
         let mut indecies: Vec<usize> = Vec::new();
         let map = filter_execution.predicate(self.expression);
-        for i in 0..map.len() {
-            if map[i] {
+        for (i, elem) in map.iter().enumerate() {
+            if *elem {
                 indecies.push(i);
             }
         }
