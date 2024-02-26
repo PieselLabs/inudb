@@ -1,3 +1,2 @@
-mod dummy_kernels;
-mod kernel;
+mod kernels;
 mod slots;
