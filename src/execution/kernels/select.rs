@@ -7,8 +7,8 @@ pub struct Select<'s> {
     res: &'s mut Vec<RecordBatch>,
 }
 
-impl<'i> Select<'i> {
-    pub(crate) fn new(res: &'i mut Vec<RecordBatch>) -> Self {
+impl<'s> Select<'s> {
+    pub(crate) fn new(res: &'s mut Vec<RecordBatch>) -> Self {
         Self { res }
     }
 }

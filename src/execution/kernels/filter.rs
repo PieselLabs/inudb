@@ -4,13 +4,13 @@ use arrow::array::{Array, Int32Array, RecordBatch};
 use arrow::datatypes::SchemaRef;
 
 pub struct Filter<'f> {
-    children: &'f mut dyn Kernel<(RecordBatch, Vec<usize>)>,
+    children: Vec<Box<dyn Kernel<(RecordBatch, Vec<usize>)> + 'f>>,
     expression: &'f Expr,
 }
 
 impl<'f> Filter<'f> {
     pub(crate) fn new(
-        children: &'f mut dyn Kernel<(RecordBatch, Vec<usize>)>,
+        children: Vec<Box<dyn Kernel<(RecordBatch, Vec<usize>)> + 'f>>,
         expression: &'f Expr,
     ) -> Self {
         Self {
@@ -26,17 +26,17 @@ impl Kernel<RecordBatch> for Filter<'_> {
     }
 
     fn execute(&mut self, input: RecordBatch) -> anyhow::Result<()> {
-        let filter_execution = FilterExec::new(&input);
-        let mut indecies: Vec<usize> = Vec::new();
-        let map = filter_execution.predicate(self.expression);
-        for (i, elem) in map.iter().enumerate() {
-            if *elem {
-                indecies.push(i);
+        let exec = FilterExec::new(&input);
+        for child in &mut self.children {
+            let mut indecies: Vec<usize> = Vec::new();
+            let map = exec.evaluate(self.expression);
+            for (i, elem) in map.iter().enumerate() {
+                if *elem {
+                    indecies.push(i);
+                }
             }
+            child.execute((input.clone(), indecies))?;
         }
-        self.children
-            .execute((input, indecies))
-            .expect("Filter children");
         Ok(())
     }
 }
@@ -123,7 +123,7 @@ impl<'e> FilterExec<'e> {
         result
     }
 
-    fn predicate(self, expression: &Expr) -> Vec<bool> {
+    fn evaluate(self, expression: &Expr) -> Vec<bool> {
         self.visit_expression(expression)
     }
 }
@@ -140,31 +140,33 @@ mod tests {
     fn test_filter_kernel() {
         let batch_size = 500;
         let mut result: Vec<RecordBatch> = Vec::new();
-        let filter_expr = Box::from(Expr::Binary(Binary {
-            lhs: Box::from(Expr::Binary(Binary {
-                lhs: Box::from(Expr::Ident(Ident {
-                    name: "id".to_string(),
+        {
+            let filter_expr = Box::from(Expr::Binary(Binary {
+                lhs: Box::from(Expr::Binary(Binary {
+                    lhs: Box::from(Expr::Ident(Ident {
+                        name: "id".to_string(),
+                    })),
+                    op: BinaryOp::Gt,
+                    rhs: Box::from(Expr::IntegerLiteral(IntegerLiteral { value: 10 })),
                 })),
-                op: BinaryOp::Gt,
-                rhs: Box::from(Expr::IntegerLiteral(IntegerLiteral { value: 10 })),
-            })),
-            op: BinaryOp::And,
-            rhs: Box::from(Expr::Binary(Binary {
-                lhs: Box::from(Expr::Ident(Ident {
-                    name: "id".to_string(),
+                op: BinaryOp::And,
+                rhs: Box::from(Expr::Binary(Binary {
+                    lhs: Box::from(Expr::Ident(Ident {
+                        name: "id".to_string(),
+                    })),
+                    op: BinaryOp::Lt,
+                    rhs: Box::from(Expr::IntegerLiteral(IntegerLiteral { value: 50 })),
                 })),
-                op: BinaryOp::Lt,
-                rhs: Box::from(Expr::IntegerLiteral(IntegerLiteral { value: 50 })),
-            })),
-        }));
+            }));
 
-        let id_array = Int32Array::from((0..batch_size).collect::<Vec<i32>>());
-        let schema = Schema::new(vec![Field::new("id", DataType::Int32, false)]);
-        let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(id_array)]).unwrap();
+            let id_array = Int32Array::from((0..batch_size).collect::<Vec<i32>>());
+            let schema = Schema::new(vec![Field::new("id", DataType::Int32, false)]);
+            let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(id_array)]).unwrap();
 
-        let mut select = Select::new(&mut result);
-        let mut filter = Filter::new(&mut select, &filter_expr);
-        let _ = filter.execute(batch);
+            let select = Select::new(&mut result);
+            let mut filter = Filter::new(vec![Box::new(select)], &filter_expr);
+            let _ = filter.execute(batch);
+        }
         assert_eq!(result.len(), 1);
 
         let batch = result.first().unwrap();

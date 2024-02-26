@@ -10,7 +10,7 @@ pub struct Scan<'s> {
 }
 
 impl<'s> Scan<'s> {
-    pub(crate) fn new(children: Vec<Box<dyn Kernel<RecordBatch> + 's>>) -> Self {
+    pub fn new(children: Vec<Box<dyn Kernel<RecordBatch> + 's>>) -> Self {
         Self {
             schema: SchemaRef::from(Schema::empty()),
             children,
