@@ -1,4 +1,4 @@
-use crate::execution::kernels::kernel::Kernel;
+use crate::execution::kernels::Kernel;
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
 

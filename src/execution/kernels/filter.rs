@@ -1,16 +1,22 @@
-use crate::execution::kernels::kernel::Kernel;
+use crate::execution::kernels::Kernel;
 use crate::logical_plan::expr::{Binary, BinaryOp, Expr, Ident, IntegerLiteral};
 use arrow::array::{Array, Int32Array, RecordBatch};
 use arrow::datatypes::SchemaRef;
 
 pub struct Filter<'f> {
-    res: &'f mut Vec<usize>,
+    children: &'f mut dyn Kernel<(RecordBatch, Vec<usize>)>,
     expression: &'f Expr,
 }
 
 impl<'f> Filter<'f> {
-    pub(crate) fn new(res: &'f mut Vec<usize>, expression: &'f Expr) -> Self {
-        Self { res, expression }
+    pub(crate) fn new(
+        children: &'f mut dyn Kernel<(RecordBatch, Vec<usize>)>,
+        expression: &'f Expr,
+    ) -> Self {
+        Self {
+            children,
+            expression,
+        }
     }
 }
 
@@ -20,22 +26,26 @@ impl Kernel<RecordBatch> for Filter<'_> {
     }
 
     fn execute(&mut self, input: RecordBatch) -> anyhow::Result<()> {
-        let execute_expression = ExecuteExpression::new(&input);
+        let filter_execution = FilterExec::new(&input);
+        let mut indecies: Vec<usize> = Vec::new();
         for i in 0..input.num_rows() {
-            if execute_expression.predicate(self.expression, i) {
-                self.res.push(i);
+            if filter_execution.predicate(self.expression, i) {
+                indecies.push(i);
             }
         }
+        self.children
+            .execute((input, indecies))
+            .expect("Filter children");
         Ok(())
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct ExecuteExpression<'e> {
+struct FilterExec<'e> {
     record_batch: &'e RecordBatch,
 }
 
-impl<'e> ExecuteExpression<'e> {
+impl<'e> FilterExec<'e> {
     pub const fn new(record_batch: &'e RecordBatch) -> Self {
         Self { record_batch }
     }
@@ -94,7 +104,7 @@ impl<'e> ExecuteExpression<'e> {
             .value(index)
     }
 
-    pub fn predicate(self, expression: &Expr, index: usize) -> bool {
+    fn predicate(self, expression: &Expr, index: usize) -> bool {
         self.visit_expression(expression, index)
     }
 }
@@ -102,6 +112,7 @@ impl<'e> ExecuteExpression<'e> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::execution::kernels::select::Select;
     use crate::logical_plan::expr::{Binary, BinaryOp, Ident, IntegerLiteral};
     use arrow::datatypes::{DataType, Field, Schema};
     use std::sync::Arc;
@@ -109,7 +120,7 @@ mod tests {
     #[test]
     fn test_filter_kernel() {
         let batch_size = 500;
-        let mut indeces: Vec<usize> = Vec::new();
+        let mut result: Vec<RecordBatch> = Vec::new();
         let filter_expr = Box::from(Expr::Binary(Binary {
             lhs: Box::from(Expr::Binary(Binary {
                 lhs: Box::from(Expr::Ident(Ident {
@@ -132,8 +143,13 @@ mod tests {
         let schema = Schema::new(vec![Field::new("id", DataType::Int32, false)]);
         let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(id_array)]).unwrap();
 
-        let mut filter = Filter::new(&mut indeces, &filter_expr);
+        let mut select = Select::new(&mut result);
+        let mut filter = Filter::new(&mut select, &filter_expr);
         let _ = filter.execute(batch);
-        assert_eq!(indeces.len(), 39);
+        assert_eq!(result.len(), 1);
+
+        let batch = result.first().unwrap();
+        assert_eq!(batch.num_rows(), 39);
+        assert_eq!(batch.num_columns(), 1);
     }
 }

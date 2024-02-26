@@ -1,4 +1,4 @@
-use crate::execution::kernels::kernel::Kernel;
+use crate::execution::kernels::Kernel;
 use arrow::datatypes::{Schema, SchemaRef};
 use arrow::record_batch::RecordBatch;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
