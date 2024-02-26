@@ -28,8 +28,9 @@ impl Kernel<RecordBatch> for Filter<'_> {
     fn execute(&mut self, input: RecordBatch) -> anyhow::Result<()> {
         let filter_execution = FilterExec::new(&input);
         let mut indecies: Vec<usize> = Vec::new();
-        for i in 0..input.num_rows() {
-            if filter_execution.predicate(self.expression, i) {
+        let map = filter_execution.predicate(self.expression);
+        for i in 0..map.len() {
+            if map[i] {
                 indecies.push(i);
             }
         }
@@ -50,62 +51,80 @@ impl<'e> FilterExec<'e> {
         Self { record_batch }
     }
 
-    fn visit_expression(self, expression: &Expr, index: usize) -> bool {
+    fn visit_expression(self, expression: &Expr) -> Vec<bool> {
         match expression {
             Expr::Binary(binary) => match binary.op {
-                BinaryOp::And | BinaryOp::Or => self.visit_logical_binary(binary, index),
-                BinaryOp::Lt | BinaryOp::Gt => self.visit_compare_binary(binary, index),
+                BinaryOp::And | BinaryOp::Or => self.visit_logical_binary(binary),
+                BinaryOp::Lt | BinaryOp::Gt => self.visit_compare_binary(binary),
             },
             _ => unimplemented!(),
         }
     }
 
-    fn visit_logical_binary(self, expr: &Binary, index: usize) -> bool {
-        let lhs = self.visit_expression(&expr.lhs, index);
-        let rhs = self.visit_expression(&expr.rhs, index);
-        match expr.op {
-            BinaryOp::And => lhs && rhs,
-            BinaryOp::Or => lhs || rhs,
-            _ => panic!("Binary op must be logical type"),
+    fn visit_logical_binary(self, expr: &Binary) -> Vec<bool> {
+        let lhs = self.visit_expression(&expr.lhs);
+        let rhs = self.visit_expression(&expr.rhs);
+        let mut result = Vec::with_capacity(lhs.len());
+        for i in 0..lhs.len() {
+            match expr.op {
+                BinaryOp::And => result.push(lhs[i] && rhs[i]),
+                BinaryOp::Or => result.push(lhs[i] || rhs[i]),
+                _ => panic!("Binary op must be logical type"),
+            }
         }
+        result
     }
 
-    fn visit_compare_binary(self, expr: &Binary, index: usize) -> bool {
-        let lhs = self.visit_binary_value(&expr.lhs, index);
-        let rhs = self.visit_binary_value(&expr.rhs, index);
-        match expr.op {
-            BinaryOp::Lt => lhs < rhs,
-            BinaryOp::Gt => lhs > rhs,
-            _ => panic!("Binary op must be compare type"),
+    fn visit_compare_binary(self, expr: &Binary) -> Vec<bool> {
+        let lhs = self.visit_binary_value(&expr.lhs);
+        let rhs = self.visit_binary_value(&expr.rhs);
+        let mut result = Vec::with_capacity(lhs.len());
+        for i in 0..lhs.len() {
+            match expr.op {
+                BinaryOp::Lt => result.push(lhs[i] < rhs[i]),
+                BinaryOp::Gt => result.push(lhs[i] > rhs[i]),
+                _ => panic!("Binary op must be compare type"),
+            }
         }
+        result
     }
 
-    fn visit_binary_value(self, expr: &Expr, index: usize) -> i32 {
+    fn visit_binary_value(self, expr: &Expr) -> Vec<i32> {
         match expr {
             Expr::Binary(_) => {
                 panic!("visit_binary_value")
             }
-            Expr::Ident(ident) => self.visit_ident(ident, index),
-            Expr::IntegerLiteral(literal) => Self::visit_integer_literal(literal),
+            Expr::Ident(ident) => self.visit_ident(ident),
+            Expr::IntegerLiteral(literal) => self.visit_integer_literal(literal),
         }
     }
 
-    const fn visit_integer_literal(expr: &IntegerLiteral) -> i32 {
-        expr.value
+    fn visit_integer_literal(self, expr: &IntegerLiteral) -> Vec<i32> {
+        let len = self.record_batch.num_rows();
+        let mut result: Vec<i32> = Vec::with_capacity(len);
+        for _ in 0..len {
+            result.push(expr.value);
+        }
+        result
     }
 
-    fn visit_ident(self, expr: &Ident, index: usize) -> i32 {
-        self.record_batch
+    fn visit_ident(self, expr: &Ident) -> Vec<i32> {
+        let column = self
+            .record_batch
             .column_by_name(&expr.name)
             .unwrap()
             .as_any()
             .downcast_ref::<Int32Array>()
-            .unwrap()
-            .value(index)
+            .unwrap();
+        let mut result: Vec<i32> = Vec::with_capacity(column.len());
+        for i in 0..column.len() {
+            result.push(column.value(i));
+        }
+        result
     }
 
-    fn predicate(self, expression: &Expr, index: usize) -> bool {
-        self.visit_expression(expression, index)
+    fn predicate(self, expression: &Expr) -> Vec<bool> {
+        self.visit_expression(expression)
     }
 }
 
