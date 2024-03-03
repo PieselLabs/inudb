@@ -1,2 +1,1 @@
-mod kernels;
-mod slots;
+mod operators;

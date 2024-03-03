@@ -1,8 +1,6 @@
 mod errors;
 
 use crate::catalog::Catalog;
-use crate::logical_plan::{Dag, LogicalPlan};
-use crate::optimizer::errors::OptimizerError;
 
 pub struct Optimizer<'c> {
     catalog: &'c dyn Catalog,
@@ -11,11 +9,6 @@ pub struct Optimizer<'c> {
 impl<'c> Optimizer<'c> {
     pub fn new(catalog: &'c dyn Catalog) -> Self {
         Optimizer { catalog }
-    }
-
-    #[allow(clippy::unnecessary_wraps, clippy::needless_pass_by_ref_mut)]
-    pub fn run(dag: &mut Dag<LogicalPlan>) -> Result<(), OptimizerError> {
-        Ok(())
     }
 }
 
