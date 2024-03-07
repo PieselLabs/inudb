@@ -3,21 +3,25 @@ use crate::logical_plan::expr::{Binary, BinaryOp, Expr, Ident, IntegerLiteral};
 use arrow::array::{Array, Int32Array, RecordBatch};
 use std::sync::Arc;
 
-pub struct Filter {
+pub struct Filter<'i> {
+    successor: Box<dyn Operator<(Vec<usize>, Arc<RecordBatch>)> + 'i>,
     expression: Box<Expr>,
 }
 
-impl Filter {
-    pub(crate) fn new(expression: Box<Expr>) -> Self {
-        Self { expression }
+impl<'i> Filter<'i> {
+    pub(crate) fn new(
+        expression: Box<Expr>,
+        successor: Box<dyn Operator<(Vec<usize>, Arc<RecordBatch>)> + 'i>,
+    ) -> Self {
+        Self {
+            expression,
+            successor,
+        }
     }
 }
 
-impl Operator<Arc<RecordBatch>, (Vec<usize>, Arc<RecordBatch>)> for Filter {
-    fn execute(
-        &mut self,
-        input: Arc<RecordBatch>,
-    ) -> anyhow::Result<(Vec<usize>, Arc<RecordBatch>)> {
+impl Operator<Arc<RecordBatch>> for Filter<'_> {
+    fn execute(&mut self, input: Arc<RecordBatch>) -> anyhow::Result<()> {
         let exec = FilterExec::new(&input);
 
         let mut indices: Vec<usize> = Vec::new();
@@ -29,7 +33,13 @@ impl Operator<Arc<RecordBatch>, (Vec<usize>, Arc<RecordBatch>)> for Filter {
             }
         }
 
-        Ok((indices, input.clone()))
+        self.successor.execute((indices, input.clone()))?;
+
+        Ok(())
+    }
+
+    fn all_inputs_received(&mut self) -> anyhow::Result<()> {
+        self.successor.all_inputs_received()
     }
 }
 
@@ -123,6 +133,8 @@ impl<'e> FilterExec<'e> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::execution::operators::collect::Collect;
+    use crate::execution::operators::select::Select;
     use crate::logical_plan::expr::{Binary, BinaryOp, Ident, IntegerLiteral};
     use arrow::datatypes::{DataType, Field, Schema};
     use std::sync::Arc;
@@ -153,11 +165,18 @@ mod tests {
         let batch =
             Arc::new(RecordBatch::try_new(Arc::new(schema), vec![Arc::new(id_array)]).unwrap());
 
-        let mut filter = Filter::new(filter_expr);
+        let mut res = Vec::new();
 
-        let (indices, batch) = filter.execute(batch)?;
+        {
+            let collect = Box::new(Collect::new(&mut res));
+            let select = Box::new(Select::new(collect));
+            let mut filter = Filter::new(filter_expr, select);
 
-        assert_eq!(indices.len(), 39);
+            filter.execute(batch)?;
+        }
+
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].num_rows(), 39);
 
         Ok(())
     }

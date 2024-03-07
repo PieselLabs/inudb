@@ -2,20 +2,19 @@ use crate::execution::operators::Operator;
 use arrow::array::{Array, Int32Array, RecordBatch};
 use std::sync::Arc;
 
-pub struct Select {}
+pub struct Select<'i> {
+    successor: Box<dyn Operator<Arc<RecordBatch>> + 'i>,
+}
 
-impl Select {
+impl<'i> Select<'i> {
     #[allow(clippy::missing_const_for_fn)]
-    pub(crate) fn new() -> Self {
-        Self {}
+    pub(crate) fn new(successor: Box<dyn Operator<Arc<RecordBatch>> + 'i>) -> Self {
+        Self { successor }
     }
 }
 
-impl Operator<(Vec<usize>, Arc<RecordBatch>), Arc<RecordBatch>> for Select {
-    fn execute(
-        &mut self,
-        input: (Vec<usize>, Arc<RecordBatch>),
-    ) -> anyhow::Result<Arc<RecordBatch>> {
+impl Operator<(Vec<usize>, Arc<RecordBatch>)> for Select<'_> {
+    fn execute(&mut self, input: (Vec<usize>, Arc<RecordBatch>)) -> anyhow::Result<()> {
         let mut arrays: Vec<Arc<dyn Array>> = Vec::new();
         let (indexes, batch) = input;
         for i in 0..batch.num_columns() {
@@ -31,6 +30,13 @@ impl Operator<(Vec<usize>, Arc<RecordBatch>), Arc<RecordBatch>> for Select {
             arrays.push(Arc::new(Int32Array::from(data)));
         }
         let new_batch = Arc::new(RecordBatch::try_new(batch.schema(), arrays)?);
-        Ok(new_batch)
+
+        self.successor.execute(new_batch)?;
+
+        Ok(())
+    }
+
+    fn all_inputs_received(&mut self) -> anyhow::Result<()> {
+        self.successor.all_inputs_received()
     }
 }
