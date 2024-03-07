@@ -7,5 +7,4 @@ mod catalog;
 mod dag;
 mod execution;
 mod logical_plan;
-mod optimizer;
 mod parser;
