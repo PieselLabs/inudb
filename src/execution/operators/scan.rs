@@ -53,7 +53,7 @@ mod tests {
         {
             let collect = Box::new(Collect::new(&mut res));
             let mut scan = Scan::new(collect);
-            let batch = scan.execute((
+            scan.execute((
                 "samples/sample-data/parquet/userdata1.parquet".to_string(),
                 batch_size,
             ))?;

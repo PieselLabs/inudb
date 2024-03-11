@@ -14,8 +14,8 @@ impl<'i> Filter<'i> {
         successor: Box<dyn Operator<(Vec<usize>, Arc<RecordBatch>)> + 'i>,
     ) -> Self {
         Self {
-            expression,
             successor,
+            expression,
         }
     }
 }
